@@ -4,25 +4,23 @@ import type { CellProps, Column,  } from 'react-table';
 import { IModelApp, IModelConnection } from '@itwin/core-frontend';
 import { StagePanelLocation, StagePanelSection, UiItemsProvider, Widget, WidgetState } from '@itwin/appui-react';
 import { _executeQuery } from '../api/queryAPI'
-import { colourIsolateElements, resetElements } from '../api/elements';
+import { colourElements, resetElements } from '../api/elements';
 
 
-export class SearchResultsWidgetProvider implements UiItemsProvider {
+export class ModelWidgetProvider implements UiItemsProvider {
   public static activeIModel?: IModelConnection;
 
-  public readonly id: string = "SearchResultsWidgetProvider";
+  public readonly id: string = "ModelWidgetProvider";
   public static readResults = false;
 
   public provideWidgets(_stageId: string, _stageUsage: string, location: StagePanelLocation, _section?: StagePanelSection): ReadonlyArray<Widget> {
-      const imodel = SearchResultsWidgetProvider.activeIModel;
-      if (imodel)
-        console.log('iModel Connection Active')
+      const imodel = ModelWidgetProvider.activeIModel;
       const widgets: Widget[] = [];
       // if (imodel && location === StagePanelLocation.Right) {      
-      if (location === StagePanelLocation.Bottom) {
+      if (location === StagePanelLocation.Right) {
           widgets.push({
-              id: "Search Widget",
-              label: "Search Results",
+              id: "Model Widget",
+              label: "Model Widget",
               defaultState: WidgetState.Open,
               content: <ResultsPanel/>,
           });
@@ -50,46 +48,23 @@ const ResultsPanel =  () => {
   const imodel = IModelApp.viewManager.selectedView?.iModel;
   const searchClick = async (e: React.MouseEvent) => {
     console.log('SearchClick has been clicked')
-    const userLabelHTML = document.getElementById("userLabel") as HTMLInputElement | null;
-    const categoryHTML = document.getElementById('category') as HTMLInputElement | null;
-    const fileNameHTML = document.getElementById('fileName') as HTMLInputElement | null;
+    const ecInstanceHTML = document.getElementById("ecInstanceId") as HTMLInputElement | null;
 
     // set userLabel to HTMLElement value or blank string if undefined   
-    const userLabel = userLabelHTML ? userLabelHTML.value : "";
-    const category = categoryHTML ? categoryHTML.value : "";
-    const fileName = fileNameHTML ? fileNameHTML.value : "";
+    const ecInstance = ecInstanceHTML ? ecInstanceHTML.value : "";
 
     // we cannot use wildcards when the string is blank
     // add where clause separately and build up from userLabel, category and fileName
     let whereUserLabel = ""
-    if (userLabel  !== "")
-      whereUserLabel = `ge.userlabel like '%${userLabel}%'`;
-    let whereCategory = ""
-    if (category  !== "")
-      whereCategory = `ca.codeValue like '%${category}%'`
-    let whereFileName = "";
-    if (fileName !== "")
-      whereFileName = `ge.userlabel like '%${fileName}%'`
-
+    if (ecInstance  !== "")
+      whereUserLabel = `ecInstanceId IN (${ecInstance})`;
     let whereClause = ""
       if (whereUserLabel !== "") {
         whereClause = whereUserLabel;
       }
-      if (whereCategory !== "") {
-        if (whereClause !== "")
-          whereClause = whereClause + " and " + whereCategory;
-        else
-          whereClause = whereCategory;
-      }
-      if (whereFileName !== "") {
-        if (whereClause !== "")
-          whereClause = whereClause + " and " + whereFileName;
-        else
-          whereClause = whereFileName;
-      }
       if (whereClause !== "") 
         whereClause = "where " + whereClause;
-    const ecSQL = `select ge.ecInstanceId, ge.userlabel, ca.codevalue as Category, rl.userlabel as Model from bis.geometricelement3d ge join bis.category ca on ge.category.id = ca.ecinstanceid join bis.externalsourceaspect ea on ge.ecinstanceid = ea.element.id join bis.externalsource es on es.ecinstanceid = ea.source.id join bis.repositorylink rl on rl.ecinstanceid = es.repository.id ${whereClause}`
+    const ecSQL = `select ge.ecInstanceId, ge.ecClassId, ge.userlabel, ge.codevalue as CodeValue, parent.id as Parent from bis.element ge  ${whereClause}`
     
     // "select * from bis.category"
     if (imodel) {
@@ -140,7 +115,7 @@ const ResultsPanel =  () => {
         for (const result in results) {
           instanceIds.push(results[result].id)          
         } 
-        colourIsolateElements(IModelApp.viewManager.selectedView, instanceIds, false)
+        colourElements(IModelApp.viewManager.selectedView, instanceIds, false)
       }
     }
     else
@@ -161,19 +136,24 @@ const onClickHandler = (props: CellProps<{
         width: '40%',
       },
       {
+        id: 'className',
+        Header: 'Class',
+        accessor: 'className',        
+      },
+      {
+        id: 'codeValue',
+        Header: 'Codevalue',
+        accessor: 'codeValue',
+      },
+      {
         id: 'userLabel',
-        Header: 'User Label',
-        accessor: 'userLabel',        
+        Header: 'user Label',
+        accessor: 'userLabel',
       },
       {
-        id: 'category',
-        Header: 'Category',
-        accessor: 'category',
-      },
-      {
-        id: 'Model',
-        Header: 'Model',
-        accessor: 'model',
+        id: 'parent',
+        Header: 'Parent',
+        accessor: 'parent',
       },
 
     ],
@@ -188,9 +168,7 @@ const onClickHandler = (props: CellProps<{
 
   return (
     <div style={{ minWidth: 'min(100%, 350px)' }}>
-      <LabeledInput label="Userlabel" placeholder='userLabel' id='userLabel'/>
-      <LabeledInput label="Category" placeholder='Category' id = 'category'/>
-      <LabeledInput label="Filename" placeholder='Filename' id = 'filename'/>
+      <LabeledInput label="ecInstanceId" placeholder='ecInstanceId' id='ecInstanceId'/>
       <Button styleType='cta' onClick={searchClick}>Search</Button>
       <ToggleSwitch label="Isolate" checked={showIsolate} onChange={isolateClick} />
 

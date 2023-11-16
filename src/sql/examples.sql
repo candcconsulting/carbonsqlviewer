@@ -25,3 +25,9 @@
 "select * from bis.geometricelement3d ge where category.id in ('0x80000003670','0x9000000690f','0xa0000001738')"
 
 "select * from bis.category ca where ca.codeValue like 'AR-SS%'"
+
+"select * from bis.physicalpartition rl where rl.codevalue like '%1CP02-BVS_WSP-ME-DMB-SS07_SL14-014001%'"
+"select * from bis.physicalpartition where codevalue like '%1CP01-MDS_ARP-AR-DMB-SS08_SL32-995001%'"
+"select * from bis.element where parent.id = 0x5a0000003e21"
+"select * from bis.element where ecInstanceId IN (0x5a0000003e21)"
+"select ge.ecInstanceId, ge.ecClassId, ge.userlabel, ge.codevalue as CodeValue from bis.element ge  "

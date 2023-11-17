@@ -31,3 +31,44 @@
 "select * from bis.element where parent.id = 0x5a0000003e21"
 "select * from bis.element where ecInstanceId IN (0x5a0000003e21)"
 "select ge.ecInstanceId, ge.ecClassId, ge.userlabel, ge.codevalue as CodeValue from bis.element ge  "
+"select * from bis.spatialmodel sm join bis.element e on sm.ecinstanceid = e.ecinstanceid"
+
+"SELECT ECInstanceId, Parent.Id FROM Bis.Subject where ECInstanceId = 0x5a0000000047"
+"WITH RECURSIVE
+  elements (id, parentId) AS (
+    SELECT ECInstanceId, Parent.Id FROM Bis.Subject WHERE ECInstanceId = 0x3000000000c
+    UNION ALL
+    SELECT e.ECInstanceId, e.Parent.Id FROM Bis.Element e JOIN elements pe ON pe.id = e.Parent.Id
+  )
+SELECT * FROM elements"
+"WITH RECURSIVE models(id, parentId) AS ( SELECT ECInstanceId, Parent.Id FROM Bis.Subject WHERE ECInstanceId = 0x5a0000000047 UNION ALL SELECT e.ECInstanceId, e.Parent.Id FROM Bis.Element e JOIN models pe ON pe.id = e.Parent.Id ) SELECT id, parentId FROM models"
+
+"WITH RECURSIVE children(id, parent_id) AS (
+  SELECT ECInstanceId, Parent.Id
+  FROM Bis.Subject
+  WHERE ECInstanceId = '0x5a0000000047'
+  
+  UNION ALL
+  
+  SELECT e.ECInstanceId, e.Parent.Id
+  FROM Bis.Element e
+  JOIN children c ON c.id = e.Parent.Id
+)
+SELECT *
+FROM children;"
+
+"select * from bis.spatialIndex"
+
+WITH RECURSIVE children(id, parent, userLabel, className, codeValue) AS (
+      SELECT ECInstanceId, Parent.Id, userlabel, ecClassId, codevalue
+      FROM Bis.Subject
+      where userlabel LIKE '%-WP11a-%'
+      
+      UNION ALL
+      
+      SELECT e.ECInstanceId, e.Parent.Id, e.userlabel, e.ecClassId, e.codevalue
+      FROM Bis.Element e
+      JOIN children c ON c.id = e.Parent.Id
+    )
+    SELECT *
+    FROM children

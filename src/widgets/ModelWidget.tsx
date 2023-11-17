@@ -49,29 +49,60 @@ const ResultsPanel =  () => {
   const searchClick = async (e: React.MouseEvent) => {
     console.log('SearchClick has been clicked')
     const ecInstanceHTML = document.getElementById("ecInstanceId") as HTMLInputElement | null;
+    const codeValueHTML = document.getElementById("codeValue") as HTMLInputElement | null;
 
     // set userLabel to HTMLElement value or blank string if undefined   
     const ecInstance = ecInstanceHTML ? ecInstanceHTML.value : "";
+    const codeValue = codeValueHTML ? codeValueHTML.value : "";
 
     // we cannot use wildcards when the string is blank
     // add where clause separately and build up from userLabel, category and fileName
-    let whereUserLabel = ""
+    let wherecInstance = ""
     if (ecInstance  !== "")
-      whereUserLabel = `ecInstanceId IN (${ecInstance})`;
+      wherecInstance = `ecInstanceId IN (${ecInstance})`;
+
+    let whereCodeValue = ""
+    if (codeValue !== "")
+      whereCodeValue = `codevalue LIKE '%${codeValue}%'`;
+
     let whereClause = ""
-      if (whereUserLabel !== "") {
-        whereClause = whereUserLabel;
+      if (wherecInstance !== "") {
+        whereClause = wherecInstance;
       }
+      if (whereCodeValue !== "") {
+        if (whereClause !== "")
+          whereClause = `${whereClause} AND ${whereCodeValue}`;
+        else
+          whereClause = whereCodeValue;
+      } 
       if (whereClause !== "") 
         whereClause = "where " + whereClause;
-    const ecSQL = `select ge.ecInstanceId, ge.ecClassId, ge.userlabel, ge.codevalue as CodeValue, parent.id as Parent from bis.element ge  ${whereClause}`
+    //const ecSQL = `select ge.ecInstanceId, ge.ecClassId, ge.userlabel, ge.codevalue as CodeValue, parent.id as Parent from bis.element ge  ${whereClause}`
+    const ecSQL = `WITH RECURSIVE children(id, parent, userLabel, className, codeValue) AS (
+      SELECT ECInstanceId, Parent.Id, userlabel, ecClassId, codevalue
+      FROM Bis.Subject
+      ${whereClause}
+      
+      UNION ALL
+      
+      SELECT e.ECInstanceId, e.Parent.Id, e.userlabel, e.ecClassId, e.codevalue
+      FROM Bis.Element e
+      JOIN children c ON c.id = e.Parent.Id
+    )
+    SELECT *
+    FROM children` 
     
-    // "select * from bis.category"
     if (imodel) {
       const records = await _executeQuery(imodel, ecSQL)
       console.log (`Number of records returned ${records.length}`)
       setResults(records);
-      resetElements(IModelApp.viewManager.selectedView);
+      const ids = []
+      for (const record of records) {
+        ids.push(record.id);
+      }
+      const response = await IModelApp.viewManager.selectedView?.changeViewedModels(ids);
+      console.log(response);
+      // resetElements(IModelApp.viewManager.selectedView);
     }
     
   }
@@ -169,6 +200,7 @@ const onClickHandler = (props: CellProps<{
   return (
     <div style={{ minWidth: 'min(100%, 350px)' }}>
       <LabeledInput label="ecInstanceId" placeholder='ecInstanceId' id='ecInstanceId'/>
+      <LabeledInput label="Code Value" placeholder='codeValue' id='codeValue'/>
       <Button styleType='cta' onClick={searchClick}>Search</Button>
       <ToggleSwitch label="Isolate" checked={showIsolate} onChange={isolateClick} />
 

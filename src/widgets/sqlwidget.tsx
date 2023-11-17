@@ -69,7 +69,7 @@ const ResultsPanel =  () => {
       whereCategory = `ca.codeValue like '%${category}%'`
     let whereFileName = "";
     if (fileName !== "")
-      whereFileName = `ge.userlabel like '%${fileName}%'`
+      whereFileName = `rl.userlabel like '%${fileName}%'`
 
     let whereClause = ""
       if (whereUserLabel !== "") {

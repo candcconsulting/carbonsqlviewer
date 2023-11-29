@@ -1,0 +1,6 @@
+.sql-control-container {
+  margin: 5px; 
+}
+.sql-widget-container {
+  min-width: 'min(90%, 350px)'
+}

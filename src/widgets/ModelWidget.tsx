@@ -1,26 +1,29 @@
 import * as React from 'react';
 import { Button, LabeledInput, Table, ToggleSwitch } from '@itwin/itwinui-react';
-import type { CellProps, Column,  } from 'react-table';
+import type { /*CellProps, */Column,  } from 'react-table';
 import { IModelApp, IModelConnection } from '@itwin/core-frontend';
 import { StagePanelLocation, StagePanelSection, UiItemsProvider, Widget, WidgetState } from '@itwin/appui-react';
 import { _executeQuery } from '../api/queryAPI'
-import { colourElements, resetElements } from '../api/elements';
+import { colorModels, colourElements, resetElements } from '../api/elements';
+import { Cartographic } from '@itwin/core-common';
+import './ModelWidget.css';
 
 
 export class ModelWidgetProvider implements UiItemsProvider {
   public static activeIModel?: IModelConnection;
 
+
   public readonly id: string = "ModelWidgetProvider";
   public static readResults = false;
 
   public provideWidgets(_stageId: string, _stageUsage: string, location: StagePanelLocation, _section?: StagePanelSection): ReadonlyArray<Widget> {
-      const imodel = ModelWidgetProvider.activeIModel;
+      // const imodel = ModelWidgetProvider.activeIModel;
       const widgets: Widget[] = [];
       // if (imodel && location === StagePanelLocation.Right) {      
       if (location === StagePanelLocation.Right) {
           widgets.push({
               id: "Model Widget",
-              label: "Model Widget",
+              label: "Model Search",
               defaultState: WidgetState.Open,
               content: <ResultsPanel/>,
           });
@@ -41,12 +44,15 @@ const ResultsPanel =  () => {
   const [readResults, setReadResults] = React.useState(false);
   const [results, setResults] = React.useState<any[]>([])
   const [showIsolate, setShowIsolate] = React.useState(false);
-  
-
-  console.log('in results panel')
+  const [showEmphasize, setShowEmphasize] = React.useState(false);
+  const [searching, setSearching] = React.useState(false);
+   
+  const urlSubject = (window as any).urlSubject
+  console.log(`in model results panel Subject=${urlSubject}`)
 
   const imodel = IModelApp.viewManager.selectedView?.iModel;
   const searchClick = async (e: React.MouseEvent) => {
+    setSearching(true);
     console.log('SearchClick has been clicked')
     const ecInstanceHTML = document.getElementById("ecInstanceId") as HTMLInputElement | null;
     const codeValueHTML = document.getElementById("codeValue") as HTMLInputElement | null;
@@ -94,21 +100,64 @@ const ResultsPanel =  () => {
     
     if (imodel) {
       const records = await _executeQuery(imodel, ecSQL)
-      console.log (`Number of records returned ${records.length}`)
-      setResults(records);
+      // console.log (`Number of records returned ${records.length}`)
+      // setResults(records);
+       
       const ids = []
       for (const record of records) {
         ids.push(record.id);
       }
-      const response = await IModelApp.viewManager.selectedView?.changeViewedModels(ids);
-      console.log(response);
-      // resetElements(IModelApp.viewManager.selectedView);
+      const extents = await imodel?.models.queryExtents(ids);
+      const spatialExtents = [];
+      for (const extent of extents) {        
+        const myExtents : any = extent.extents
+        
+        let geocentricExtent = { low : Cartographic.fromDegrees({longitude : 0, latitude : 0, height : 0}),
+                                 high : Cartographic.fromDegrees({longitude : 0, latitude : 0, height : 0})
+                               }
+        if (extent.status === 0) {
+          try {
+            const lowCartographic = await imodel.spatialToCartographic(myExtents.low );
+            const highCartographic = await imodel.spatialToCartographic(myExtents.high);
+
+            geocentricExtent = {
+              low: lowCartographic,
+              high: highCartographic,
+            };
+          }
+          catch (error) {
+            console.log(error);
+          }
+        }
+        spatialExtents.push(geocentricExtent);
+      }
+
+      const mergedData = [];
+      for (const extent of extents) {
+        const record = records.find((r) => r.id === extent.id);
+        if (record) {
+          mergedData.push({ ...record, extent });
+        }
+      }
+      setResults(mergedData);
+      for (const id of ids) {
+        colorModels(IModelApp.viewManager.selectedView, id)
+      }
+
+
+          // colourElements(IModelApp.viewManager.selectedView, ids, false)
+          // const response = await IModelApp.viewManager.selectedView?.changeViewedModels(ids);
+          // resetElements(IModelApp.viewManager.selectedView);
     }
-    
+    setSearching(false);
   }
 
-  const isolateClick = (e : any) => {
-    console.log(`Isolate Clicked ${showIsolate}`);
+  const emphasizeClick = (e : any) => {    
+    setShowEmphasize(!showEmphasize);
+
+  }
+
+  const isolateClick = (e : any) => {    
     setShowIsolate(!showIsolate);
 
   }
@@ -140,23 +189,40 @@ const ResultsPanel =  () => {
   },[readResults])
 
   React.useEffect(() => {
-    if (showIsolate) {
-      if (results.length > 0) {
-        const instanceIds = []
-        for (const result in results) {
-          instanceIds.push(results[result].id)          
-        } 
-        colourElements(IModelApp.viewManager.selectedView, instanceIds, false)
+    const imodel = IModelApp.viewManager.selectedView?.iModel;
+    if (imodel) {
+      if (showIsolate || showEmphasize) {
+        if (results.length > 0) {
+          const instanceIds = []
+          for (const result in results) {
+            instanceIds.push(results[result].id)          
+          } 
+          if (showIsolate)
+            IModelApp.viewManager.selectedView?.changeViewedModels(instanceIds)        
+          if (showEmphasize)
+            colourElements(IModelApp.viewManager.selectedView, instanceIds, false)
+        }
+      }
+      else {
+        const ids = []
+        for (const model of imodel.models) {
+          ids.push(model.id);
+        }
+        if (!showIsolate)
+          IModelApp.viewManager.selectedView?.changeViewedModels(ids);  
+        if (!showEmphasize && !showIsolate)
+          resetElements(IModelApp.viewManager.selectedView);
       }
     }
-    else
-      resetElements(IModelApp.viewManager.selectedView);
-  }, [showIsolate])
+  
+  }, [showIsolate, showEmphasize, results])
 
+/*
 const onClickHandler = (props: CellProps<{
   name: string;
   description: string;
 }>) => {console.log(props.row.original.name)};
+*/
 
   const columns = React.useMemo(
     (): Column<TableDataType>[] => [
@@ -198,12 +264,14 @@ const onClickHandler = (props: CellProps<{
   }, []);
 
   return (
-    <div style={{ minWidth: 'min(100%, 350px)' }}>
-      <LabeledInput label="ecInstanceId" placeholder='ecInstanceId' id='ecInstanceId'/>
-      <LabeledInput label="Code Value" placeholder='codeValue' id='codeValue'/>
-      <Button styleType='cta' onClick={searchClick}>Search</Button>
-      <ToggleSwitch label="Isolate" checked={showIsolate} onChange={isolateClick} />
-
+    <div className="model-widget-container">
+      <div className="model-control-container">
+        <LabeledInput label="ecInstanceId" placeholder='ecInstanceId' id='ecInstanceId'/>
+        <LabeledInput label="Code Value" placeholder='codeValue' id='codeValue'/>
+        <Button styleType='cta' onClick={searchClick} disabled={searching}>{searching ? "Searching..." : "Search"}</Button>
+        <ToggleSwitch label="Isolate" checked={showIsolate} onChange={isolateClick} />
+        <ToggleSwitch label="Emphasize" checked={showEmphasize} onChange={emphasizeClick} />
+      </div>
       <Table
         columns={columns}
         emptyTableContent='No data.'

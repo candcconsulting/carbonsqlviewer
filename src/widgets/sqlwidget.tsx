@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { Button, LabeledInput, Table, ToggleSwitch } from '@itwin/itwinui-react';
-import type { CellProps, Column,  } from 'react-table';
+import type { /*CellProps,*/ Column,  } from 'react-table';
 import { IModelApp, IModelConnection } from '@itwin/core-frontend';
 import { StagePanelLocation, StagePanelSection, UiItemsProvider, Widget, WidgetState } from '@itwin/appui-react';
 import { _executeQuery } from '../api/queryAPI'
 import { colourIsolateElements, resetElements } from '../api/elements';
-
+import "./sqlWidget.css";
 
 export class SearchResultsWidgetProvider implements UiItemsProvider {
   public static activeIModel?: IModelConnection;
@@ -43,12 +43,14 @@ const ResultsPanel =  () => {
   const [readResults, setReadResults] = React.useState(false);
   const [results, setResults] = React.useState<any[]>([])
   const [showIsolate, setShowIsolate] = React.useState(false);
+  const [searching, setSearching] = React.useState(false);  
   
 
   console.log('in results panel')
 
   const imodel = IModelApp.viewManager.selectedView?.iModel;
   const searchClick = async (e: React.MouseEvent) => {
+    setSearching(true);
     console.log('SearchClick has been clicked')
     const userLabelHTML = document.getElementById("userLabel") as HTMLInputElement | null;
     const categoryHTML = document.getElementById('category') as HTMLInputElement | null;
@@ -98,7 +100,7 @@ const ResultsPanel =  () => {
       setResults(records);
       resetElements(IModelApp.viewManager.selectedView);
     }
-    
+    setSearching(false);
   }
 
   const isolateClick = (e : any) => {
@@ -145,12 +147,14 @@ const ResultsPanel =  () => {
     }
     else
       resetElements(IModelApp.viewManager.selectedView);
-  }, [showIsolate])
+  }, [showIsolate, results])
 
+/*
 const onClickHandler = (props: CellProps<{
   name: string;
   description: string;
 }>) => {console.log(props.row.original.name)};
+*/
 
   const columns = React.useMemo(
     (): Column<TableDataType>[] => [
@@ -187,13 +191,14 @@ const onClickHandler = (props: CellProps<{
   }, []);
 
   return (
-    <div style={{ minWidth: 'min(100%, 350px)' }}>
-      <LabeledInput label="Userlabel" placeholder='userLabel' id='userLabel'/>
-      <LabeledInput label="Category" placeholder='Category' id = 'category'/>
-      <LabeledInput label="Filename" placeholder='Filename' id = 'filename'/>
-      <Button styleType='cta' onClick={searchClick}>Search</Button>
-      <ToggleSwitch label="Isolate" checked={showIsolate} onChange={isolateClick} />
-
+    <div className='sql-widget-container'>
+      <div className='sql-control-container'>
+        <LabeledInput label="Userlabel" placeholder='userLabel' id='userLabel'/>
+        <LabeledInput label="Category" placeholder='Category' id = 'category'/>
+        <LabeledInput label="Filename" placeholder='Filename' id = 'filename'/>
+        <Button styleType='cta' onClick={searchClick} disabled={searching}>{searching ? "Searching ..." : "Search"}</Button>
+        <ToggleSwitch label="Isolate" checked={showIsolate} onChange={isolateClick} />
+      </div>
       <Table
         columns={columns}
         emptyTableContent='No data.'

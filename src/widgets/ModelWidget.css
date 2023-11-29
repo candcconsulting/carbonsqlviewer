@@ -1,0 +1,6 @@
+.model-control-container {
+  margin: 5px; 
+}
+.model-widget-container {
+  min-width: 'min(90%, 350px)'
+}

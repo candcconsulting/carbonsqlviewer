@@ -39,6 +39,7 @@ import { Auth } from "./Auth";
 import { history } from "./history";
 import { SearchResultsWidgetProvider } from "./widgets/sqlwidget";
 import { ModelWidgetProvider } from "./widgets/ModelWidget";
+import { CoordinateWidgetProvider} from "./widgets/CoordinateWidget";
 
 const App: React.FC = () => {
   const [iModelId, setIModelId] = useState(process.env.IMJS_IMODEL_ID);
@@ -46,7 +47,7 @@ const App: React.FC = () => {
   const [changesetId, setChangesetId] = useState(
     process.env.IMJS_AUTH_CLIENT_CHANGESET_ID
   );
-
+  const [subject, setSubject] = useState("");
   const accessToken = useAccessToken();
 
   const authClient = Auth.getClient();
@@ -63,6 +64,20 @@ const App: React.FC = () => {
     void login();
   }, [login]);
 
+
+  try {
+    window.addEventListener("unhandledrejection", (event) => {
+      // Prevent the error from being logged to the console
+      event.preventDefault();
+    
+      // Handle the error here
+      console.error("Unhandled Promise Rejection:", event.reason);
+    });
+  } catch (error) {
+    // Handle the error that occurred while adding the event listener
+    console.error("Error adding event listener:", error);
+  }
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has("iTwinId")) {
@@ -73,6 +88,10 @@ const App: React.FC = () => {
     }
     if (urlParams.has("changesetId")) {
       setChangesetId(urlParams.get("changesetId") as string);
+    }
+    if (urlParams.has("subject")) {
+      setSubject(urlParams.get("subject") as string);
+      (window as any).urlSubject = urlParams.get("subject") as string
     }
   }, []);
 
@@ -86,8 +105,12 @@ const App: React.FC = () => {
     if (changesetId) {
       url = `${url}&changesetId=${changesetId}`;
     }
+    if (subject) {
+      url = `${url}&subject=${subject}`;
+    }
+
     history.push(url);
-  }, [iTwinId, iModelId, changesetId]);
+  }, [iTwinId, iModelId, changesetId, subject]);
 
   /** NOTE: This function will execute the "Fit View" tool after the iModel is loaded into the Viewer.
    * This will provide an "optimal" view of the model. However, it will override any default views that are
@@ -122,6 +145,8 @@ const App: React.FC = () => {
     tileTreesLoaded().finally(() => {
       void IModelApp.tools.run(FitViewTool.toolId, viewPort, true, false);
       viewPort.view.setStandardRotation(StandardViewId.Iso);
+      const fmtr = IModelApp.quantityFormatter;
+      fmtr.setActiveUnitSystem("metric")
     });
   }, []);
 
@@ -186,6 +211,7 @@ const App: React.FC = () => {
           new MeasureToolsUiItemsProvider(),
           new SearchResultsWidgetProvider(),
           new ModelWidgetProvider(),
+          new CoordinateWidgetProvider(),
         ]}
       />
     </div>

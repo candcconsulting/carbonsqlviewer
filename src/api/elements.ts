@@ -4,8 +4,17 @@
  *
  * This code is for demonstration purposes and should not be considered production ready.
  *--------------------------------------------------------------------------------------------*/
-import { ColorDef, FeatureOverrideType } from "@itwin/core-common";
+import { HideIsolateEmphasizeManager } from "@itwin/appui-react";
+import { ColorDef, FeatureOverrideType, FeatureAppearance } from "@itwin/core-common";
 import { EmphasizeElements } from "@itwin/core-frontend";
+
+export function colorModels(vp : any, elementId: string) {
+        
+    const featureAppearance = FeatureAppearance.fromJSON({ rgb: {r: 255, g : 0, b: 0} , emphasized: true } as FeatureAppearance);
+    // HideIsolateEmphasizeManager.overrideModel(vp, elementId, featureAppearance);
+    vp.overrideModelAppearance(elementId, featureAppearance);
+ }
+
 
 export const colourElements = (
   vp: any,
@@ -74,6 +83,7 @@ export const colourIsolateElements = (
 
 
 
+
 export const hideElements = (vp: any, elementSet: any) => {
   const emph = EmphasizeElements.getOrCreate(vp);
   emph.clearEmphasizedElements(vp);
@@ -96,4 +106,12 @@ export const resetElements = (vp: any, clearHidden = true) => {
   if (clearHidden) {
     emph.clearHiddenElements(vp);
   }
+  
+  for (const model of vp.view.iModel.models) {
+    vp.dropModelAppearanceOverride(model.id);
+  }
+  HideIsolateEmphasizeManager.clearOverrideModels(vp);
+  // HideIsolateEmphasizeManager.processClearOverrideModels(vp);
+  HideIsolateEmphasizeManager.clearEmphasize(vp);
+
 };
